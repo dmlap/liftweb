@@ -321,6 +321,10 @@ class LiftServlet extends HttpServlet {
           answers = ar :: answers
           ActorPing.schedule(this, BreakOut, TimeSpan(5))
 
+        case BreakOut if !LiftRules.isContinuationPending(request.request) =>
+          // the request hasn't been suspended yet, wait a bit so the resume 
+          // isn't lost
+          ActorPing.schedule(this, BreakOut, TimeSpan(5))
         case BreakOut =>
           actors.foreach{case (act, _) => act ! Unlisten(ListenerId(seqId))}
           LiftRules.resumeRequest(

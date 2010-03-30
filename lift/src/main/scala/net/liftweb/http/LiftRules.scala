@@ -315,7 +315,7 @@ object LiftRules {
 
   def defaultLocaleCalculator(request: Box[HttpServletRequest]) = request.flatMap(_.getLocale() match {case null => Empty case l: Locale => Full(l)}).openOr(Locale.getDefault())
 
-  private val (hasContinuations_?, contSupport, getContinuation, getObject, setObject, suspend, resume) = {
+  private val (hasContinuations_?, contSupport, getContinuation, getObject, setObject, suspend, resume, isPending) = {
     try {
       val cc = Class.forName("org.mortbay.util.ajax.ContinuationSupport")
       val meth = cc.getMethod("getContinuation", classOf[HttpServletRequest], classOf[AnyRef])
@@ -324,9 +324,10 @@ object LiftRules {
       val setObj = cci.getMethod("setObject", classOf[AnyRef])
       val suspend = cci.getMethod("suspend", _root_.java.lang.Long.TYPE)
       val resume = cci.getMethod("resume")
-      (true, (cc), (meth), (getObj), (setObj), (suspend), resume)
+      val isPending = cci.getMethod("isPending")
+      (true, (cc), (meth), (getObj), (setObj), (suspend), resume, isPending)
     } catch {
-      case e => (false, null, null, null, null, null, null)
+      case e => (false, null, null, null, null, null, null, null)
     }
   }
 
@@ -367,6 +368,14 @@ object LiftRules {
       Some(ret)
     }
   }
+  
+  /**
+   * Returns whether the Continuation associated with the specified 
+   * HttpServletRequest is still pending.  A pending Continuation is one for 
+   * which the handling of Continuation#suspend() has not completed. 
+   */
+  def isContinuationPending(req: HttpServletRequest): Boolean = 
+    isPending.invoke(getContinuation.invoke(contSupport, req, LiftRules)).asInstanceOf[Boolean]
 
   private var _sitemap: Box[SiteMap] = Empty
 
